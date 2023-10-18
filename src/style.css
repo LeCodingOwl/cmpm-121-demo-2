@@ -32,6 +32,13 @@ body {
   min-height: 100vh;
 }
 
+canvas {
+  border-radius: 25%;
+  border: 2px solid black;
+  background-color: white;
+  filter: drop-shadow(0 0 0.75rem rgb(8, 12, 223));
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
