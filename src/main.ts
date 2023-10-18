@@ -38,7 +38,7 @@ canvas.addEventListener("mousemove", (e) => {
     }
 });
 
-canvas.addEventListener("mouseup", (e) => {
+canvas.addEventListener("mouseup", () => {
     cursor.active = false;
 });
 
