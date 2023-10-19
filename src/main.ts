@@ -24,7 +24,6 @@ let currentLine: { x: number; y: number }[] | null = null;
 const drawingChanged = new Event("drawing-changed", {});
 
 const start = 0;
-const offset = 1;
 
 const cursor = { active: false, x: 0, y: 0 };
 
