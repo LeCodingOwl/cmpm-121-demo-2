@@ -15,66 +15,77 @@ canvas.width = 256;
 canvas.height = 256;
 app.append(canvas);
 
-const ctx = canvas.getContext("2d")!;
+class Marker {
+  context: CanvasRenderingContext2D;
+  constructor(context: CanvasRenderingContext2D) {
+    this.context = context;
+    this.context.strokeStyle = "black";
+    this.context.lineWidth = 2;
+  }
+}
 
-const lines: { x: number; y: number }[][] = [];
-const redoLines: { x: number; y: number }[][] = [];
-let currentLine: { x: number; y: number }[] | null = null;
+class LineCommand {
+  points: { x: number; y: number }[];
+  constructor(x: number, y: number) {
+    this.points = [{ x, y }];
+  }
+  display(context: CanvasRenderingContext2D) {
+    context.beginPath();
+    const { x, y } = this.points[start];
+    context.moveTo(x, y);
 
-const drawingChanged = new Event("drawing-changed", {});
+    for (const { x, y } of this.points) {
+      context.lineTo(x, y);
+    }
+    context.stroke();
+  }
+  drag(x: number, y: number) {
+    this.points.push({ x, y });
+  }
+}
 
 const start = 0;
 
-const cursor = { active: false, x: 0, y: 0 };
+const ctx = canvas.getContext("2d")!;
+const marker = new Marker(ctx);
 
-canvas.addEventListener("mousedown", (e) => {
-  cursor.active = true;
-  cursor.x = e.offsetX;
-  cursor.y = e.offsetY;
+const commands: LineCommand[] = [];
+const redoCommands: LineCommand[] = [];
 
-  currentLine = [];
-  lines.push(currentLine);
-  redoLines.splice(start, redoLines.length);
-  currentLine.push({ x: cursor.x, y: cursor.y });
+const bus = new EventTarget();
 
-  canvas.dispatchEvent(drawingChanged);
-});
+function notify(name: string) {
+  bus.dispatchEvent(new Event(name));
+}
+
+bus.addEventListener("drawing-changed", redraw);
+
+let currentLineCommand: LineCommand | null = null;
 
 canvas.addEventListener("mousemove", (e) => {
-  if (cursor.active) {
-    cursor.x = e.offsetX;
-    cursor.y = e.offsetY;
-    currentLine!.push({ x: cursor.x, y: cursor.y });
-    canvas.dispatchEvent(drawingChanged);
+  const leftButton = 1;
+  if (e.buttons == leftButton) {
+    currentLineCommand!.points.push({ x: e.offsetX, y: e.offsetY });
+    notify("drawing-changed");
   }
 });
 
-canvas.addEventListener("mouseup", () => {
-  cursor.active = false;
-
-  currentLine = null;
-  canvas.dispatchEvent(drawingChanged);
+canvas.addEventListener("mousedown", (e) => {
+  currentLineCommand = new LineCommand(e.offsetX, e.offsetY);
+  commands.push(currentLineCommand);
+  redoCommands.splice(start, redoCommands.length);
+  notify("drawing-changedd");
 });
 
-canvas.addEventListener("drawing-changed", () => {
-  redraw();
+canvas.addEventListener("mouseup", () => {
+  currentLineCommand = null;
+  notify("drawing-changed");
 });
 
 function redraw() {
   ctx.clearRect(start, start, canvas.width, canvas.height);
 
-  for (const line of lines) {
-    if (line.length > offset) {
-      ctx.beginPath();
-      const { x, y } = line[start];
-      ctx.moveTo(x, y);
-
-      for (const { x, y } of line) {
-        ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-  }
+  commands.forEach((cmd) => cmd.display(marker.context));
 }
 
 app.append(document.createElement("br"));
@@ -84,8 +95,8 @@ clearButton.innerHTML = "clear";
 app.append(clearButton);
 
 clearButton.addEventListener("click", () => {
-  lines.splice(0, lines.length);
-  canvas.dispatchEvent(drawingChanged);
+  commands.splice(start, commands.length);
+  notify("drawing-changed");
 });
 
 const undoButton = document.createElement("button");
@@ -93,9 +104,9 @@ undoButton.innerHTML = "undo";
 app.append(undoButton);
 
 undoButton.addEventListener("click", () => {
-  if (lines.length > 0) {
-    redoLines.push(lines.pop()!);
-    canvas.dispatchEvent(drawingChanged);
+  if (commands.length) {
+    redoCommands.push(commands.pop()!);
+    notify("drawing-changed");
   }
 });
 
@@ -104,8 +115,8 @@ redoButton.innerHTML = "redo";
 app.append(redoButton);
 
 redoButton.addEventListener("click", () => {
-  if (redoLines.length > 0) {
-    lines.push(redoLines.pop()!);
-    canvas.dispatchEvent(drawingChanged);
+  if (redoCommands.length) {
+    commands.push(redoCommands.pop()!);
+    notify("drawing-changed");
   }
 });
