@@ -83,11 +83,7 @@ const thinMarker = new Marker(ctx, thin);
 const thickMarker = new Marker(ctx, thick);
 let currentMarker = thinMarker;
 
-const commands: LineCommand[] = [];
-const redoCommands: LineCommand[] = [];
 const bus = new EventTarget();
-
-let cursorCommand: CursorCommand | null = null;
 
 function notify(name: string) {
   bus.dispatchEvent(new Event(name));
