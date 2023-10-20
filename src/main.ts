@@ -49,7 +49,7 @@ class LineCommand {
   }
 }
 
-class CursorCommand {
+class LinePreviewCommand {
   x: number;
   y: number;
   thickness: number;
@@ -72,6 +72,44 @@ class CursorCommand {
   }
 }
 
+class StickerCommand {
+  points: { x: number; y: number }[];
+  sticker: string;
+  constructor(x: number, y: number, sticker: string) {
+    this.points = [{ x, y }];
+    this.sticker = sticker;
+  }
+  display(context: CanvasRenderingContext2D) {
+    const offset = 1;
+    const { x, y } = this.points[this.points.length - offset];
+    context.fillText(this.sticker, x, y);
+  }
+  drag(x: number, y: number) {
+    this.points.push({ x, y });
+  }
+}
+
+class StickerPreviewCommand {
+  x: number;
+  y: number;
+  sticker: string;
+  constructor(x: number, y: number, sticker: string) {
+    this.x = x;
+    this.y = y;
+    this.sticker = sticker;
+  }
+  display(context: CanvasRenderingContext2D) {
+    const magnitude = 8;
+    const xOffset = 4;
+    const yOffset = 2;
+    context.fillText(
+      this.sticker,
+      this.x - magnitude / xOffset,
+      this.y + magnitude / yOffset
+    );
+  }
+}
+
 const start = 0;
 
 const thin = 2;
@@ -81,7 +119,34 @@ const ctx = canvas.getContext("2d")!;
 
 const thinMarker = new Marker(ctx, thin);
 const thickMarker = new Marker(ctx, thick);
-let currentMarker = thinMarker;
+
+let currentMarker: Marker | null = thinMarker;
+let currentTool: Sticker | null = null;
+
+const commands: (LineCommand | StickerCommand)[] = [];
+const redoCommands: (LineCommand | StickerCommand)[] = [];
+
+const toolButtons: Sticker[] = [
+  {
+    name: "🐱",
+    button: document.createElement("button"),
+  },
+  {
+    name: "🐾",
+    button: document.createElement("button"),
+  },
+  {
+    name: "🐈‍",
+    button: document.createElement("button"),
+  },
+];
+
+interface Sticker {
+  name: string;
+  button: HTMLButtonElement;
+}
+
+let cursorCommand: LinePreviewCommand | StickerPreviewCommand | null = null;
 
 const bus = new EventTarget();
 
@@ -91,8 +156,9 @@ function notify(name: string) {
 
 bus.addEventListener("drawing-changed", redraw);
 bus.addEventListener("tool-moved", redraw);
+bus.addEventListener("tool-changed", changeTool);
 
-let currentLineCommand: LineCommand | null = null;
+let currentLineCommand: LineCommand | StickerCommand | null = null;
 
 canvas.addEventListener("mouseout", () => {
   cursorCommand = null;
@@ -100,37 +166,62 @@ canvas.addEventListener("mouseout", () => {
 });
 
 canvas.addEventListener("mouseenter", (e) => {
-  cursorCommand = new CursorCommand(
-    e.offsetX,
-    e.offsetY,
-    currentMarker.lineWidth
-  );
-  notify("tool-moved");
+  if (currentMarker) {
+    cursorCommand = new LinePreviewCommand(
+      e.offsetX,
+      e.offsetY,
+      currentMarker.lineWidth
+    );
+    notify("tool-moved");
+  }
 });
 
 canvas.addEventListener("mousemove", (e) => {
   const leftButton = 1;
-  cursorCommand = new CursorCommand(
-    e.offsetX,
-    e.offsetY,
-    currentMarker.lineWidth
-  );
+  if (currentMarker) {
+    cursorCommand = new LinePreviewCommand(
+      e.offsetX,
+      e.offsetY,
+      currentMarker.lineWidth
+    );
+  } else if (currentTool) {
+    cursorCommand = new StickerPreviewCommand(
+      e.offsetX,
+      e.offsetY,
+      currentTool.name
+    );
+  }
   notify("tool-moved");
+
   if (e.buttons == leftButton) {
     cursorCommand = null;
-    currentLineCommand!.points.push({ x: e.offsetX, y: e.offsetY });
+    if (currentMarker) {
+      currentLineCommand!.points.push({ x: e.offsetX, y: e.offsetY });
+    } else if (currentTool) {
+      currentLineCommand!.points.push({ x: e.offsetX, y: e.offsetY });
+    }
     notify("drawing-changed");
   }
 });
 
 canvas.addEventListener("mousedown", (e) => {
   cursorCommand = null;
-  currentLineCommand = new LineCommand(
-    e.offsetX,
-    e.offsetY,
-    currentMarker.lineWidth
-  );
-  commands.push(currentLineCommand);
+  if (currentMarker) {
+    currentLineCommand = new LineCommand(
+      e.offsetX,
+      e.offsetY,
+      currentMarker.lineWidth
+    );
+    commands.push(currentLineCommand);
+  }
+  if (currentTool) {
+    currentLineCommand = new StickerCommand(
+      e.offsetX,
+      e.offsetY,
+      currentTool.name
+    );
+    commands.push(currentLineCommand);
+  }
   redoCommands.splice(start, redoCommands.length);
   notify("drawing-changedd");
 });
@@ -147,6 +238,8 @@ app.append(thickButton);
 
 thickButton.addEventListener("click", () => {
   currentMarker = thickMarker;
+  currentTool = null;
+  notify("tool-changed");
   thickButton?.classList.add("selectedTool");
   thinButton?.classList.remove("selectedTool");
 });
@@ -157,6 +250,8 @@ app.append(thinButton);
 
 thinButton.addEventListener("click", () => {
   currentMarker = thinMarker;
+  currentTool = null;
+  notify("tool-changed");
   thinButton?.classList.add("selectedTool");
   thickButton?.classList.remove("selectedTool");
 });
@@ -164,12 +259,32 @@ thinButton.addEventListener("click", () => {
 function redraw() {
   ctx.clearRect(start, start, canvas.width, canvas.height);
 
-  commands.forEach((cmd) => cmd.display(currentMarker.context));
+  commands.forEach((cmd) => cmd.display(ctx));
 
   if (cursorCommand) {
-    cursorCommand.display(currentMarker.context);
+    cursorCommand.display(ctx);
   }
 }
+
+function changeTool() {
+  toolButtons.forEach(function (tool) {
+    tool.button?.classList.remove("selectedTool");
+  });
+  currentTool?.button.classList.add("selectedTool");
+  thickButton?.classList.remove("selectedTool");
+  thinButton?.classList.remove("selectedTool");
+}
+
+toolButtons.forEach(function (tool) {
+  tool.button.innerHTML = tool.name;
+  app.append(tool.button);
+
+  tool.button.addEventListener("click", () => {
+    currentTool = tool;
+    currentMarker = null;
+    notify("tool-changed");
+  });
+});
 
 app.append(document.createElement("br"));
 
