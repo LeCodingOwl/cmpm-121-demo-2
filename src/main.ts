@@ -18,6 +18,14 @@ canvas.height = 256;
 canvas.style.cursor = "none";
 app.append(canvas);
 
+app.append(document.createElement("br"));
+
+const exportButton = document.createElement("button");
+exportButton.innerHTML = "export";
+app.append(exportButton);
+
+app.append(document.createElement("br"));
+
 // create the classes
 class Tool {
   context: CanvasRenderingContext2D;
@@ -137,7 +145,7 @@ class StickerPreviewCommand {
 const start = 0;
 const stickerSize = 4;
 const thin = 2;
-const thick = 4;
+const thick = 5;
 
 // Get canvas context
 const ctx = canvas.getContext("2d")!;
@@ -350,3 +358,28 @@ redoButton.addEventListener("click", () => {
     notify("drawing-changed");
   }
 });
+
+//Export button functionality
+exportButton.addEventListener("click", exportCanvas);
+
+function exportCanvas() {
+  const canvasExport = document.createElement("canvas");
+  canvasExport.width = 1024;
+  canvasExport.height = 1024;
+  canvasExport.style.cursor = "none";
+
+  const scaleX = 4;
+  const scaleY = 4;
+  const exportCtx = canvasExport.getContext("2d")!;
+
+  exportCtx.scale(scaleX, scaleY);
+  exportCtx.clearRect(start, start, canvasExport.width, canvasExport.height);
+  exportCtx.fillStyle = "white";
+  exportCtx.fillRect(start, start, canvasExport.width, canvasExport.height);
+  commands.forEach((cmd) => cmd.display(exportCtx));
+
+  const anchor = document.createElement("a");
+  anchor.href = canvasExport.toDataURL("image/png");
+  anchor.download = "sketchpad.png";
+  anchor.click();
+}
