@@ -182,7 +182,7 @@ const stickerButtons: Sticker[] = [
   new Sticker(ctx, stickerSize, "🐈"),
 ];
 
-interface markerColor {
+interface MarkerColor {
   hex: string;
   button: HTMLButtonElement;
 }
@@ -418,7 +418,7 @@ redoButton.addEventListener("click", () => {
 });
 
 app.append(document.createElement("br"));
-colorOptions.forEach(function (color: markerColor) {
+colorOptions.forEach(function (color: MarkerColor) {
   colorMarkerButton(color);
 });
 
@@ -447,7 +447,7 @@ function exportCanvas() {
   anchor.click();
 }
 
-function colorMarkerButton(color: markerColor) {
+function colorMarkerButton(color: MarkerColor) {
   color.button.style.backgroundColor = color.hex;
   app.append(color.button);
 
