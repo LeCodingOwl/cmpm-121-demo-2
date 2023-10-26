@@ -271,10 +271,9 @@ customStickerButton.addEventListener("click", showCustomStickerPrompt);
 function showCustomStickerPrompt() {
   const offset = 1;
   const customStickerText = window.prompt("Enter your custom sticker:");
-  if (customStickerText != null) {
-    stickerButtons.push(new Sticker(ctx, stickerSize, customStickerText!));
-    addStickerButton(stickerButtons[stickerButtons.length - offset]);
-  }
+
+  stickerButtons.push(new Sticker(ctx, stickerSize, customStickerText!));
+  addStickerButton(stickerButtons[stickerButtons.length - offset]);
 }
 
 // Redraws the canvas when the drawing has changed
