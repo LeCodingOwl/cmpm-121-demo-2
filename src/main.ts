@@ -143,7 +143,7 @@ class StickerPreviewCommand {
 }
 
 const start = 0;
-const stickerSize = 4;
+const stickerSize = 7;
 const thin = 2;
 const thick = 5;
 
